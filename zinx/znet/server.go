@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"ZinxLearning/zinx/utils"
 	"ZinxLearning/zinx/ziface"
 	"fmt"
 	"net"
@@ -14,17 +15,9 @@ type Server struct {
 	Router    ziface.IRouter
 }
 
-// func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-// 	// fmt.Println("[Conn Handle] CallbackToClient...")
-// 	if _, err := conn.Write(data[:cnt]); err != nil {
-// 		fmt.Println("write back buf err", err)
-// 		return errors.New("CallBackToClient error")
-// 	}
-// 	return nil
-// }
-
 func (s *Server) Start() {
-	fmt.Printf("[Start] Server LIstener at IP: %s , Port : %d , is starting\n", s.IP, s.Port)
+	fmt.Printf("[Zinx] Server Name: %s , listender at IP : %s , Port : %d is starting",
+		utils.GlobalObject.Name, utils.GlobalObject.Host, utils.GlobalObject.TcpPort)
 	go func() {
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
@@ -51,26 +44,6 @@ func (s *Server) Start() {
 			cid++
 
 			go dealConn.Start()
-			/*go func() {
-				buf := make([]byte, 4096)
-				for {
-					cnt , err := conn.Read(buf)
-					if cnt == 0 || err != nil{
-						conn.Close()
-						break
-					}
-
-					if err != nil {
-						fmt.Println("recv buf err", err)
-						continue
-					}
-
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("write back buf err : ", err)
-						continue
-					}
-				}
-			}()*/
 		}
 	}()
 }
@@ -92,10 +65,10 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 
 func NewServer(name string) ziface.IServer {
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      8999,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router:    nil,
 	}
 	return s

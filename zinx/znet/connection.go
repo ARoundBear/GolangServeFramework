@@ -2,7 +2,9 @@ package znet
 
 import (
 	"ZinxLearning/zinx/ziface"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -40,35 +42,48 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 
 	for {
-		buf := make([]byte, 4096)
-		cnt, err := c.Conn.Read(buf)
-		if cnt == 0 || err != nil {
-			c.Conn.Close()
+		//创建一个拆解包的对象
+		dp := NewDataPack()
+
+		//读取客户端的msg head 二进制流8个字节
+		headData := make([]byte, dp.GetHeadLen())
+		_, err := io.ReadFull(c.GetTCPConnection(), headData)
+		if err != nil {
+			fmt.Println("read msg head error", err)
 			break
 		}
-		if err != nil {
-			fmt.Println("recv buf err", err)
-			continue
-		}
 
+		//拆包，得到msgId 和 msgDatalen 放在msg消息中
+		msg, err := dp.UnPack(headData)
+		if err != nil {
+			fmt.Println("unpack error", err)
+			break
+		}
+		//根据DataLen 再次读取Data , 放在msg.Data中
+		var data []byte
+		if msg.GetMsgLen() > 0 {
+			data = make([]byte, msg.GetMsgLen())
+			_, err := io.ReadFull(c.GetTCPConnection(), data)
+			if err != nil {
+				fmt.Println("read msg data error", err)
+				break
+			}
+		}
+		msg.SetData(data)
+
+		//得到当前conn数据的Request请求数据
 		req := Request{
 			conn: c,
-			data: buf,
+			msg:  msg,
 		}
 
 		//find router call from register bind
 		go func(request ziface.IRequest) {
-			c.Router.PreHandle(request)
+			//c.Router.PreHandle(request)
 			c.Router.Handle(request)
-			c.Router.PostHandle(request)
+			//c.Router.PostHandle(request)
 		}(&req)
 
-		// fmt.Printf("server read buf is %s\n", buf[:cnt])
-
-		// if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
-		// 	fmt.Println("ConnID", c.ConnID, "handle is error", err)
-		// 	break
-		// }
 	}
 }
 
@@ -107,7 +122,24 @@ func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.LocalAddr()
 }
 
-// send data to remote client
-func (c *Connection) Send(data []byte) error {
+//提供一个SendMsg方法 将我们要发送给客户端的数据，先进行封包，再发送
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.isClosed {
+		return errors.New("Connection closed when send msg")
+	}
+	dp := NewDataPack()
+
+	binaryMsg , err :=dp.Pack(NewMsgPackage(msgId , data))
+	if err != nil{
+		fmt.Println("dp pack err :" , err);
+		return err
+	}
+
+	_ , err = c.Conn.Write(binaryMsg)
+	if err != nil{
+		fmt.Println("send msg err :" , err)
+		return errors.New("conn write error")
+	}
+
 	return nil
 }

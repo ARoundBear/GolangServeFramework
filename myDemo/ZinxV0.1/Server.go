@@ -7,7 +7,7 @@ import (
 )
 
 type PingRouter struct {
-	znet.BaseRouter
+	//znet.BaseRouter
 }
 
 func (pr *PingRouter) PreHandle(request ziface.IRequest) {
@@ -20,9 +20,16 @@ func (pr *PingRouter) PreHandle(request ziface.IRequest) {
 
 func (pr *PingRouter) Handle(request ziface.IRequest) {
 	fmt.Println("Call Router Hadnle...")
-	_, err := request.GetConnection().GetTCPConnection().Write([]byte("ping...ping...ping\n"))
-	if err != nil {
-		fmt.Println("call back ping...ping...ping error")
+	// _, err := request.GetConnection().GetTCPConnection().Write([]byte("ping...ping...ping\n"))
+	// if err != nil {
+	// 	fmt.Println("call back ping...ping...ping error")
+	// }
+	fmt.Println("recv from client : msgID  = ", request.GetMsgID(),
+		", data = ", string(request.GetData()))
+	err := request.GetConnection().SendMsg(1 , []byte("ping...ping...ping..."))
+	if err != nil{
+		fmt.Println("request send message err : " , err)
+		return 
 	}
 }
 
